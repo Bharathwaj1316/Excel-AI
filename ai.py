@@ -84,7 +84,8 @@ def status() -> tuple[bool, str]:
         r = requests.get(f"{OLLAMA_URL}/api/tags", timeout=3)
         r.raise_for_status()
     except requests.RequestException:
-        return False, "Ollama is not running. Start the Ollama app, then reload this page."
+        return False, ("The offline AI (Ollama) isn't running here, so asking in your own words is "
+                       "off. On your own PC, start the Ollama app and reload this page.")
     names = [m.get("name", "") for m in r.json().get("models", [])]
     if not any(n == MODEL or n.split(":")[0] == MODEL for n in names):
         return False, f"Model {MODEL} is not downloaded. Run:  ollama pull {MODEL}"

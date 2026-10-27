@@ -68,6 +68,14 @@ instead (few values that repeat a lot).
 To use another model: `ollama pull llama3.2:3b`, then `set EXCEL_AI_MODEL=llama3.2:3b`
 before running `run.bat`.
 
+## Online demo (Streamlit Community Cloud)
+The same files also run as a public demo at share.streamlit.io (main file `app.py`,
+Python 3.12). There is no Ollama online, so the AI parts are off; filters, dashboard,
+group and total, and the PDF still work, and a simple rule picks the option columns.
+Visitors click "Try with the sample file" (`samples/demo_data.xlsx`, 80 made-up rows).
+The demo tells visitors not to upload real office data: on the cloud, uploads leave
+the computer. Local copies started with `run.bat` stay on this computer only.
+
 ## Tests
 ```
 .venv\Scripts\python.exe tests\test_filters.py

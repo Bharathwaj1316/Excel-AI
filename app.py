@@ -20,6 +20,7 @@ from filters import (
 MAX_PICKLIST = 500  # never offer a dropdown with more choices than this
 HERE = Path(__file__).parent
 LOGO = str(HERE / "assets" / "logo.png")
+SAMPLE = HERE / "samples" / "demo_data.xlsx"
 
 st.set_page_config(page_title="Excel AI Filter", page_icon=LOGO, layout="wide")
 
@@ -318,25 +319,46 @@ def example_question(df: pd.DataFrame) -> str:
     return "e.g. " + (" and ".join(parts) if parts else "show rows where …")
 
 
-def hero():
+def is_online_demo() -> bool:
+    """True on the public Streamlit Community Cloud link, where uploads leave the computer."""
+    return "streamlit.app" in (st.context.url or "")
+
+
+def hero(online: bool):
     hour = datetime.datetime.now().hour
     greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
     with st.container(key="hero"):
-        st.html('<span class="hero-pill">Offline · private</span>')
+        st.html(f'<span class="hero-pill">{"Online demo" if online else "Offline · private"}</span>')
         st.title(f"{greeting}!")
-        st.caption("Upload an Excel or CSV file, then filter by column, ask in your own words, "
-                   "and see the dashboard update as you go. Everything stays on this computer.")
+        if online:
+            st.caption("Try it with the sample file: filter by column, see the dashboard update and "
+                       "total by district or department. This is a public demo, so please don't "
+                       "upload real office data.")
+        else:
+            st.caption("Upload an Excel or CSV file, then filter by column, ask in your own words, "
+                       "and see the dashboard update as you go. Everything stays on this computer.")
 
 
 def main():
+    online = is_online_demo()
     apply_style()
-    hero()
+    hero(online)
 
     with st.container(border=True, key="card-upload"):
         uploaded = st.file_uploader("Upload an Excel or CSV file", type=["xlsx", "xlsm", "xls", "csv"])
-        if not uploaded:
+        if uploaded:
+            st.session_state.pop("use-sample", None)
+        elif st.button("Try with the sample file", icon=":material/science:",
+                       type="primary" if online else "secondary",
+                       help="80 made-up rows of districts, departments, stakeholders and seedlings."):
+            st.session_state["use-sample"] = True
+        if uploaded:
+            data, name = uploaded.getvalue(), uploaded.name
+        elif st.session_state.get("use-sample"):
+            data, name = SAMPLE.read_bytes(), SAMPLE.name
+            st.caption(f"Using the sample file **{SAMPLE.name}**. Upload your own file to replace it.")
+        else:
             st.stop()
-        data, name = uploaded.getvalue(), uploaded.name
 
         try:
             sheets = cached_sheets(data, name)

@@ -6,7 +6,8 @@ gatherUsageStats = false
 toolbarMode = "viewer"
 
 [server]
-address = "localhost"
+# Local copies listen on this computer only: run.bat passes --server.address localhost.
+# It isn't set here so the same files also run on Streamlit Community Cloud (online demo).
 maxUploadSize = 200
 
 # Deep green + lime, rounded and minimal. Fonts are installed on every Windows PC, so

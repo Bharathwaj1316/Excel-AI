@@ -6,4 +6,5 @@ if not exist .venv\Scripts\python.exe (
     pause
     exit /b 1
 )
-.venv\Scripts\python.exe -m streamlit run app.py
+REM localhost: only this computer can open the app, not others on the network.
+.venv\Scripts\python.exe -m streamlit run app.py --server.address localhost
