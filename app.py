@@ -1,7 +1,9 @@
 """Excel AI Filter: upload a spreadsheet, filter it column by column or by asking
 in plain words. Runs fully offline (Streamlit UI + local Ollama model)."""
+import datetime
 import hashlib
 import io
+from pathlib import Path
 
 import altair as alt
 import pandas as pd
@@ -16,8 +18,21 @@ from filters import (
 )
 
 MAX_PICKLIST = 500  # never offer a dropdown with more choices than this
+HERE = Path(__file__).parent
+LOGO = str(HERE / "assets" / "logo.png")
 
-st.set_page_config(page_title="Excel AI Filter", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Excel AI Filter", page_icon=LOGO, layout="wide")
+
+
+def apply_style():
+    """Rounded cards and smooth transitions (style.css), with card colours per light/dark mode."""
+    dark = st.context.theme.type == "dark"
+    card = ("--card-bg:#13201b; --card-border:#22332c; --card-shadow:0 1px 2px rgba(0,0,0,.3);"
+            " --card-shadow-hover:0 8px 24px rgba(0,0,0,.35);") if dark else (
+           "--card-bg:#ffffff; --card-border:#e6ece8; --card-shadow:0 1px 3px rgba(16,40,30,.06);"
+           " --card-shadow-hover:0 10px 28px rgba(16,40,30,.10);")
+    st.html(f"<style>:root {{{card}}}\n{(HERE / 'style.css').read_text(encoding='utf-8')}</style>")
+    st.logo(LOGO, size="large")
 
 
 @st.cache_data(show_spinner="Reading file…")
@@ -122,7 +137,7 @@ def ask_ai_section(df: pd.DataFrame, key: str, ready: bool, message: str):
     if not ready:
         st.warning(message + "  \nThe column filters on the left still work.")
 
-    with st.form(f"ask-{key}", clear_on_submit=False):
+    with st.form(f"ask-{key}", clear_on_submit=False, border=False):
         question = st.text_input(
             "What do you want to see?",
             placeholder=example_question(df),
@@ -169,8 +184,11 @@ def bar_chart(counts: pd.Series, color: str) -> alt.Chart:
         tooltip=[alt.Tooltip("label:N", title="Value"), alt.Tooltip("rows:Q", title="Rows", format=",")],
     )
     bars = base.mark_bar(color=color, cornerRadiusEnd=4)
-    labels = base.mark_text(align="left", dx=4).encode(text=alt.Text("rows:Q", format=","))
-    return (bars + labels).properties(height=max(28 * len(data), 80))
+    # Values wear muted text ink, never the bar colour, and must stay readable in both modes.
+    ink = "#a9b8b1" if st.context.theme.type == "dark" else "#5b6b64"
+    labels = base.mark_text(align="left", dx=4, color=ink).encode(text=alt.Text("rows:Q", format=","))
+    # Transparent so the chart sits on its card instead of a differently coloured box.
+    return (bars + labels).properties(height=max(28 * len(data), 80), background="transparent")
 
 
 def dashboard_section(result: pd.DataFrame, df: pd.DataFrame, option_cols: list[str],
@@ -185,13 +203,14 @@ def dashboard_section(result: pd.DataFrame, df: pd.DataFrame, option_cols: list[
     if result.empty:
         st.info("No rows match the filters, so there is nothing to chart.")
     else:
-        # Validated against the light and dark chart surfaces (3:1 contrast or better).
-        color = "#36a463" if st.context.theme.type == "dark" else "#1a7f4b"
+        # Validated against the light (#ffffff) and dark (#13201b) card surfaces.
+        color = "#5fa83f" if st.context.theme.type == "dark" else "#1a7f55"
         grid = st.columns(2)
         for i, (title, counts) in enumerate(charts):
-            with grid[i % 2].container(border=True):
+            with grid[i % 2].container(border=True, key=f"card-chart-{i}"):
                 st.markdown(f"**{title}**")
-                st.altair_chart(bar_chart(counts, color), alt=title)
+                st.altair_chart(bar_chart(counts, color), alt=title,
+                                height=max(28 * len(counts), 80) + 50)
     base = file_name.rsplit(".", 1)[0]
     st.download_button(
         "Download dashboard as PDF", lambda: pdf_report(result, file_name, numbers, charts, filters_used),
@@ -299,23 +318,34 @@ def example_question(df: pd.DataFrame) -> str:
     return "e.g. " + (" and ".join(parts) if parts else "show rows where …")
 
 
+def hero():
+    hour = datetime.datetime.now().hour
+    greeting = "Good morning" if hour < 12 else "Good afternoon" if hour < 17 else "Good evening"
+    with st.container(key="hero"):
+        st.html('<span class="hero-pill">Offline · private</span>')
+        st.title(f"{greeting}!")
+        st.caption("Upload an Excel or CSV file, then filter by column, ask in your own words, "
+                   "and see the dashboard update as you go. Everything stays on this computer.")
+
+
 def main():
-    st.title("📊 Excel AI Filter")
-    st.caption("Everything stays on this computer. Upload a file, then filter by column or just ask.")
+    apply_style()
+    hero()
 
-    uploaded = st.file_uploader("Upload an Excel or CSV file", type=["xlsx", "xlsm", "xls", "csv"])
-    if not uploaded:
-        st.stop()
-    data, name = uploaded.getvalue(), uploaded.name
+    with st.container(border=True, key="card-upload"):
+        uploaded = st.file_uploader("Upload an Excel or CSV file", type=["xlsx", "xlsm", "xls", "csv"])
+        if not uploaded:
+            st.stop()
+        data, name = uploaded.getvalue(), uploaded.name
 
-    try:
-        sheets = cached_sheets(data, name)
-    except Exception as e:
-        st.error(f"Couldn't open this file: {e}")
-        st.stop()
-    c1, c2 = st.columns([3, 1])
-    sheet = c1.selectbox("Sheet", sheets) if len(sheets) > 1 else sheets[0]
-    header_row = c2.number_input("Column names are in row", min_value=1, max_value=100, value=1)
+        try:
+            sheets = cached_sheets(data, name)
+        except Exception as e:
+            st.error(f"Couldn't open this file: {e}")
+            st.stop()
+        c1, c2 = st.columns([3, 1])
+        sheet = c1.selectbox("Sheet", sheets) if len(sheets) > 1 else sheets[0]
+        header_row = c2.number_input("Column names are in row", min_value=1, max_value=100, value=1)
 
     try:
         df = cached_table(data, name, sheet, int(header_row) - 1)
@@ -328,7 +358,8 @@ def main():
 
     key = f"{hashlib.md5(data).hexdigest()[:10]}-{sheet}-{header_row}"
     ready, message = ai.status()
-    ai_spec = ask_ai_section(df, key, ready, message)
+    with st.container(border=True, key="card-ask"):
+        ai_spec = ask_ai_section(df, key, ready, message)
     detected, sum_cols, source = cached_column_roles(key, ready, df)
     option_conds, option_cols = option_filter_widgets(df, key, detected, source)
     manual = option_conds + column_filter_widgets(df, key)
@@ -357,17 +388,20 @@ def main():
         st.error(str(e))
 
     dashboard_section(result, df, option_cols, sum_cols, filters_used, name)
-    group_total_section(df, option_cols, sum_cols, key, ready)
+    with st.container(border=True, key="card-group"):
+        group_total_section(df, option_cols, sum_cols, key, ready)
 
-    st.subheader(f"Showing {len(result):,} of {len(df):,} rows")
-    st.dataframe(result, width="stretch", hide_index=True, alt="Filtered rows")
+    with st.container(border=True, key="card-rows"):
+        st.subheader(f"Showing {len(result):,} of {len(df):,} rows")
+        st.dataframe(result, width="stretch", hide_index=True, alt="Filtered rows")
 
-    base = name.rsplit(".", 1)[0]
-    d1, d2, _ = st.columns([1, 1, 4])
-    d1.download_button("⬇ Download Excel", to_excel(result), f"{base}_filtered.xlsx",
-                       "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-    d2.download_button("⬇ Download CSV", result.to_csv(index=False).encode("utf-8-sig"),
-                       f"{base}_filtered.csv", "text/csv")
+        base = name.rsplit(".", 1)[0]
+        with st.container(horizontal=True):
+            st.download_button("Download Excel", to_excel(result), f"{base}_filtered.xlsx",
+                               "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                               icon=":material/table_view:")
+            st.download_button("Download CSV", result.to_csv(index=False).encode("utf-8-sig"),
+                               f"{base}_filtered.csv", "text/csv", icon=":material/download:")
 
 
 main()

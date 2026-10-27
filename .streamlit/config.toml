@@ -1,6 +1,54 @@
 [browser]
 gatherUsageStats = false
 
+[client]
+# Hide developer buttons (Deploy, Rerun); the menu keeps the light/dark switch.
+toolbarMode = "viewer"
+
 [server]
 address = "localhost"
 maxUploadSize = 200
+
+# Deep green + lime, rounded and minimal. Fonts are installed on every Windows PC, so
+# nothing is downloaded (the app works offline). Cards, shadows and transitions are in
+# style.css; colours live here.
+[theme]
+font = "'Segoe UI', 'Segoe UI Variable Text', system-ui, sans-serif"
+headingFontWeights = [700, 650, 600, 600, 600, 600]
+headingFontSizes = ["28px", "21px", "17px", "15px", "14px", "12px"]
+baseFontSize = 14
+baseRadius = "12px"
+buttonRadius = "10px"
+showWidgetBorder = true
+showSidebarBorder = true
+linkUnderline = false
+
+[theme.light]
+primaryColor = "#1b5e46"
+backgroundColor = "#f3f6f4"
+secondaryBackgroundColor = "#eaf0ec"
+textColor = "#1c2b25"
+borderColor = "#dfe7e2"
+dataframeHeaderBackgroundColor = "#eaf0ec"
+greenColor = "#1a7f55"
+chartCategoricalColors = ["#1a7f55"]
+
+[theme.light.sidebar]
+backgroundColor = "#ffffff"
+secondaryBackgroundColor = "#f3f6f4"
+borderColor = "#e6ece8"
+
+[theme.dark]
+primaryColor = "#2f8a62"
+backgroundColor = "#0c1512"
+secondaryBackgroundColor = "#17251f"
+textColor = "#e4ece8"
+borderColor = "#22332c"
+dataframeHeaderBackgroundColor = "#17251f"
+greenColor = "#5fa83f"
+chartCategoricalColors = ["#5fa83f"]
+
+[theme.dark.sidebar]
+backgroundColor = "#0f1a16"
+secondaryBackgroundColor = "#17251f"
+borderColor = "#1d2c26"
